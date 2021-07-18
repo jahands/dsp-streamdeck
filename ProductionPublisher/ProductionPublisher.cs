@@ -15,7 +15,7 @@ namespace ProductionView
     [BepInPlugin("com.github.jahands.dsp_production", Strings.Name, Strings.Version)]
     public class ProductionPublisherMod : BaseUnityPlugin
     {
-        private const int TickLimit = 10;
+        private const int TickLimit = 200;
         private static ProductionPublisherMod _instance;
         private static int _count;
         private readonly Dictionary<WebSocket, List<int>> RequiredIds = new Dictionary<WebSocket, List<int>>();
