@@ -96,12 +96,12 @@ namespace ProductionView
                     buf = BitConverter.GetBytes(stat.itemId);
                     foreach (var b in buf)
                         data.AddItem(b);
-                    data.AddItem((byte) ':');
+                    //data.AddItem((byte) ':');
                     // todo Check if this index access is correct
                     buf = BitConverter.GetBytes(stat.total[0]);
                     foreach (var b in buf)
                         data.AddItem(b);
-                    data.AddItem((byte) ';');
+                    //data.AddItem((byte) ';');
                 }
 
                 await pair.Key.SendAsync(data, WebSocketMessageType.Binary, true, CancellationToken.None);
