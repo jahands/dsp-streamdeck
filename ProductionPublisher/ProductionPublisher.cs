@@ -1,9 +1,14 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Net;
+using System.Net.WebSockets;
+using System.Threading;
 using BepInEx;
 using HarmonyLib;
 using UnityEngine;
 using WebSockets;
+using WebSocket = WebSockets.WebSocket;
 
 namespace ProductionView
 {
@@ -13,6 +18,7 @@ namespace ProductionView
         private const int TickLimit = 10;
         private static ProductionPublisherMod _instance;
         private static int _count;
+        private readonly Dictionary<WebSocket, List<int>> RequiredIds = new Dictionary<WebSocket, List<int>>();
         private Harmony _harmony;
         private WebSocketServer _socket;
 
@@ -41,25 +47,76 @@ namespace ProductionView
             ProductionPublisherDebug.Log("Started!");
         }
 
-        private void SocketConnected(object sender, WebSocket e)
+        private async void SocketConnected(object sender, WebSocket ws)
         {
-            // todo Handle incoming sockets
+            // Handle incoming sockets
+
+            if (ws.SubProtocol != "DspProductionData")
+            {
+                await ws.CloseAsync(WebSocketCloseStatus.ProtocolError, "Expected Subprotocol: DspProductionData",
+                    CancellationToken.None);
+                return;
+            }
+
+            do
+            {
+                var seg = new ArraySegment<byte>();
+                var result = await ws.ReceiveAsync(seg, CancellationToken.None);
+                var data = seg.ToArray();
+
+                if (result.MessageType != WebSocketMessageType.Binary)
+                    return;
+                if (BitConverter.ToString(data, 0, 3) != "add")
+                    (RequiredIds[ws] ?? (RequiredIds[ws] = new List<int>())).Add(BitConverter.ToInt32(data, 3));
+                else if (BitConverter.ToString(data, 0, 3) != "rem")
+                    (RequiredIds[ws] ?? (RequiredIds[ws] = new List<int>())).Remove(BitConverter.ToInt32(data, 3));
+            } while (ws.State == WebSocketState.Open);
+
+            ProductionPublisherDebug.Log(
+                $"Warning: WebSocket closed with status {ws.CloseStatus} and message {ws.CloseStatusDescription} ");
         }
 
-        [HarmonyPatch(typeof(ProductionStatistics), "AfterTick")]
+        public async void StatisticsUpdateTick(UIProductionStatWindow it)
+        {
+            // Publish ONLY required data to WebSocket
+
+            foreach (var pair in RequiredIds)
+            {
+                var data = new ArraySegment<byte>();
+
+                "update".ToByteArray(out var buf);
+                foreach (var b in buf)
+                    data.AddItem(b);
+
+                foreach (var stat in pair.Value
+                    .SelectMany(id => it.production.factoryStatPool
+                        .SelectMany(stat => stat.productPool)
+                        .Where(stat => stat.itemId == id)))
+                {
+                    buf = BitConverter.GetBytes(stat.itemId);
+                    foreach (var b in buf)
+                        data.AddItem(b);
+                    data.AddItem((byte) ':');
+                    // todo Check if this index access is correct
+                    buf = BitConverter.GetBytes(stat.total[0]);
+                    foreach (var b in buf)
+                        data.AddItem(b);
+                    data.AddItem((byte) ';');
+                }
+
+                await pair.Key.SendAsync(data, WebSocketMessageType.Binary, true, CancellationToken.None);
+            }
+        }
+
+        [HarmonyPatch(typeof(UIProductionStatWindow), "OnUpdate")]
         [HarmonyPostfix]
-        public static void StatisticsPatch(ProductionStatistics __instance)
+        public static void StatisticsPatch(UIProductionStatWindow __instance)
         {
             if (++_count > TickLimit && __instance != null)
             {
                 _count = 0;
                 _instance.StatisticsUpdateTick(__instance);
             }
-        }
-
-        public void StatisticsUpdateTick(ProductionStatistics it)
-        {
-            // todo Publish ONLY required data to WebSocket
         }
     }
 
