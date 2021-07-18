@@ -38,4 +38,8 @@
       </Reference>
     </ItemGroup>
 
+    <ItemGroup>
+      <PackageReference Include="WebSocketServer" Version="1.0.8" />
+    </ItemGroup>
+
 </Project>
