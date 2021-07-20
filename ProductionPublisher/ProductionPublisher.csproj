@@ -42,4 +42,9 @@
       <PackageReference Include="WebSocketServer" Version="1.0.8" />
     </ItemGroup>
 
+    <PropertyGroup>
+        <PostBuildEvent>
+            copy $(TargetPath)ProductionPublisher.dll "C:\dev\dyson\deploy\$(TargetFileName)"
+        </PostBuildEvent>
+    </PropertyGroup>
 </Project>
