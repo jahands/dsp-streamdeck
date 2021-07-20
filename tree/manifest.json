@@ -1,0 +1,21 @@
+{
+  "Actions": [],
+  "Author": "Geostyx",
+  "Description": "Dyson Sphere Program Production Screen",
+  "Name": "DSP Production View",
+  "Icon": "img/mainIcon",
+  "Category": "dsp",
+  "CategoryIcon": "img/category",
+  "URL": "https://github.com/jahands/dsp-streamdeck",
+  "Version": "0.0.0",
+  "OS": [
+    {
+      "Platform": "windows",
+      "MinimumVersion" : "10"
+    }
+  ],
+  "SDKVersion": 2,
+  "Software": {
+    "MinimumVersion": "4.2"
+  }
+}
